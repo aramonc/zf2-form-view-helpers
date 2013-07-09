@@ -7,3 +7,7 @@ Vagrantfile
 manifests
 modules
 .idea
+index.php
+vendor
+composer.phar
+composer.lock
