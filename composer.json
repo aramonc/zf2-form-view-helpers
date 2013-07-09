@@ -1,0 +1,29 @@
+{
+    "name": "aramonc/zf2-form-view-helpers",
+    "description": "A collection of useful form view helpers. While the standard helpers are useful, I have found a need to go beyond the standard helpers to layout forms differently.",
+    "type": "library",
+    "license": "BSD-3-Clause",
+    "keywords": ["zf2","form", "view", "helper", "zend framework", "Twitter Bootsrap", "decorator"],
+    "homepage": "https://github.com/aramonc/zf2-form-view-helpers",
+    "authors": [
+        {
+            "name": "Adrian Cardenas",
+            "email": "arcardenas@gmail.com",
+            "homepage": "http://twitter.com/aramonc",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.3",
+        "zendframework/zend-form": "2.2.*",
+        "zendframework/zend-view": "2.2.*"
+    },
+    "require-dev": {
+        "zendframework/zendframework": "2.2.*"
+    },
+    "autoload": {
+        "psr-0": {
+            "Arc\\": "src/"
+        }
+    }
+}
