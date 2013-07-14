@@ -39,58 +39,140 @@ class ArcControlGroup extends AbstractHelper
     );
     protected $radio = array(
         'Zend\Form\Element\Radio',
+        //Treat multi-checkboxes like radios
+        'Zend\Form\Element\MultiCheckbox',
     );
     protected $checkbox = array(
         'Zend\Form\Element\Checkbox',
-        //'Zend\Form\Element\MultiCheckbox',
     );
 
     /**
      * @param \Zend\Form\Element $element
      * @param string             $typeOverride
      * @return string
-     * @todo Fix for multi checkbox elements where only one label will be rendered
      */
     public function __invoke(Element $element, $typeOverride = '')
     {
-        //Get the element's default view helper from the beginning to shortcut elements that don't have a control group
-        $helper = $this->getViewHelper($element, $typeOverride);
-
-        //These elements don't have a control group, just return their renders
-        if ($element instanceof Element\Hidden || $element instanceof Element\Csrf || $element instanceof Element\Collection) {
-            return $helper->render($element);
+        if (is_string($typeOverride) && !empty($typeOverride)) {
+            $factory = new \Zend\Form\Factory();
+            $element = $factory->createElement(
+                array(
+                    'name' => $element->getName(),
+                    'type' => $typeOverride,
+                    'value' => $element->getValue(),
+                    'attributes' => $element->getAttributes(),
+                    'options' => $element->getOptions(),
+                )
+            );
         }
-
-        $label = '';
-        $elementHtml = '';
-
-        //Prepare the label mark up by checking if the class attribute
-        //is defined & if it contains the control-label class if it's not a radio or checkbox
-        $labelAttributes = $element->getLabelAttributes();
-        if (!$labelAttributes || !array_key_exists('class', $labelAttributes)) {
-            $labelAttributes['class'] = '';
-        }
-        //Only add the class to the label if it is one of the control elements
-        if (in_array(get_class($element), $this->control)) {
-            $labelAttributes['class'] .= strstr(
-                $labelAttributes['class'],
-                'control-label'
-            ) === false ? ' control-label' : '';
-            $element->setLabelAttributes($labelAttributes);
-            $label = $this->getView()->formLabel($element);
-            $elementHtml = $helper->render($element);
-        } else {
-            if (in_array(get_class($element), $this->checkbox)) {
-                $labelAttributes['class'] .= strstr($labelAttributes['class'], 'checkbox') === false ? ' checkbox' : '';
-                $element->setLabelAttributes($labelAttributes);
-                $elementHtml = $this->getView()->formLabel($element, $helper->render($element), FormLabel::APPEND);
-            }
-        }
-
-        $decorator = new ViewModel(array('label' => $label, 'element' => $elementHtml));
+        $decorator = new ViewModel(array(
+            'label' => $this->renderLabel($element),
+            'element' => $this->renderElement($element)
+        ));
         $decorator->setTemplate('arc/bootstrap/control-group');
 
         return $this->getView()->render($decorator);
+    }
+
+    /**
+     * Renders the control label for the Bootstrap control group
+     *
+     * @param Element $element
+     * @return string
+     */
+    public function renderLabel(Element $element)
+    {
+        $label = '';
+
+        //Get the right class
+        $element->setLabelAttributes($this->setLabelClasses($element));
+
+        //Only add the class to the label if it is one of the control elements
+        if ($this->isControl($element) || $this->isRadio($element)) {
+            $label = $this->getView()->formLabel($element);
+        }
+
+        //Only control elements, multi-checkboxes, & radios have a label that appears outside of the control group
+
+        return $label;
+    }
+
+    /**
+     * Get the proper class for the label depending on the element type.
+     * NOTE: This returns all the attributes for the element, not just the class
+     *
+     * @param Element $element
+     * @return array
+     */
+    public function setLabelClasses(Element $element)
+    {
+        $labelAttributes = $element->getLabelAttributes();
+        $controlClass = '';
+
+        //If the class attribute is not set, set an empty one to avoid errors later
+        if (!isset($labelAttributes['class'])) {
+            $labelAttributes['class'] = '';
+        }
+
+        //Radio elements are special. The group of elements can have a control label & each individual element can have
+        //it's own label. So we set the control label here and use
+        if ($this->isControl($element) || $this->isRadio($element)) {
+            $controlClass = strstr($labelAttributes['class'], 'control-label') === false ? ' control-label' : '';
+        } elseif ($this->isCheckbox($element)) {
+            $controlClass = strstr($labelAttributes['class'], 'checkbox') === false ? ' checkbox' : '';
+        }
+
+        //Hidden elements don't have special classes in Bootstrap so no need to check for them
+
+        $labelAttributes['class'] = trim($labelAttributes['class'] . $controlClass);
+
+        return $labelAttributes;
+    }
+
+    /**
+     * @param Element $element
+     * @return bool
+     */
+    public function isControl(Element $element)
+    {
+        return in_array(get_class($element), $this->control);
+    }
+
+    /**
+     * @param Element $element
+     * @return bool
+     */
+    public function isRadio(Element $element)
+    {
+        return in_array(get_class($element), $this->radio);
+    }
+
+    /**
+     * @param Element $element
+     * @return bool
+     */
+    public function isCheckbox(Element $element)
+    {
+        return in_array(get_class($element), $this->checkbox);
+    }
+
+    /**
+     * @param Element $element
+     * @return mixed
+     */
+    public function renderElement(Element $element)
+    {
+        $helper = $this->getViewHelper($element);
+        if ($this->isCheckbox($element)) {
+            $elementHtml = $this->getView()->formLabel($element, $helper->render($element), FormLabel::APPEND);
+        } elseif($this->isRadio($element)){
+            $element->setValueOptions($this->setOptionLabelAttributes($element));
+            $elementHtml = $helper->render($element);
+        } else {
+            $elementHtml = $helper->render($element);
+        }
+
+        return $elementHtml;
     }
 
     /**
@@ -112,5 +194,59 @@ class ArcControlGroup extends AbstractHelper
             $helper = new \Zend\Form\View\Helper\FormText();
         }
         return $helper;
+    }
+
+    /**
+     * Iterates through the value_options & set the value option's appropriate class
+     *
+     * @param Element\MultiCheckbox $element
+     * @return array
+     */
+    public function setOptionLabelAttributes(Element\MultiCheckbox $element)
+    {
+        $valueOptions = $element->getValueOptions();
+        $elementClass = array_pop(explode('\\', get_class($element)));
+        $labelClass = '';
+
+        foreach ($valueOptions as $key => $spec) {
+            if (!is_array($spec)) {
+                continue;
+            }
+
+            if(!isset($spec['label_attributes'])) {
+                $spec['label_attributes'] = array('class' => '');
+            }
+
+            if (is_scalar($spec['label_attributes'])) {
+                $spec['label_attributes'] = array($spec['label_attributes']);
+            }
+
+            if (!isset($spec['label_attributes']['class'])) {
+                $spec['label_attributes']['class'] = '';
+            }
+
+            switch ($elementClass) {
+                case 'MultiCheckbox':
+                    $labelClass = 'checkbox';
+                    break;
+                case 'Radio':
+                    $labelClass = 'radio';
+                    break;
+            }
+            $class = strstr($spec['label_attributes']['class'], $labelClass) === false ? ' ' . $labelClass : '';
+            $spec['label_attributes']['class'] = trim($spec['label_attributes']['class'] . $class);
+            $valueOptions[$key] = $spec;
+        }
+
+        return $valueOptions;
+    }
+
+    /**
+     * @param Element $element
+     * @return bool
+     */
+    public function isHidden(Element $element)
+    {
+        return $element instanceof Element\Hidden || $element instanceof Element\Csrf || $element instanceof Element\Collection;
     }
 }
