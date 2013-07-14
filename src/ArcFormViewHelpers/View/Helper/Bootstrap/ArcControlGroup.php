@@ -193,6 +193,7 @@ class ArcControlGroup extends AbstractHelper
         } else {
             $helper = new \Zend\Form\View\Helper\FormText();
         }
+        $helper->setView($this->getView());
         return $helper;
     }
 
