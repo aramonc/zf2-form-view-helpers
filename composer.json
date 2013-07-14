@@ -1,6 +1,6 @@
 {
     "name": "aramonc/zf2-form-view-helpers",
-    "description": "A collection of useful form view helpers. While the standard helpers are useful, I have found a need to go beyond the standard helpers to layout forms differently.",
+    "description": "A collection of useful form view helpers. While the standard helpers are useful, I have found a need to go beyond the standard helpers to layout forms differently. It is still under development although the helpers included in numbered versions should be considered safe for use.",
     "type": "library",
     "license": "BSD-3-Clause",
     "keywords": ["zf2","form", "view", "helper", "zend framework", "Twitter Bootsrap", "decorator"],
