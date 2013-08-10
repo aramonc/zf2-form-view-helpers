@@ -24,6 +24,9 @@
     "autoload": {
         "psr-0": {
             "ArcFormViewHelpers\\": "src/"
-        }
+        },
+        "classmap": [
+            "./Module.php"
+        ]
     }
 }
